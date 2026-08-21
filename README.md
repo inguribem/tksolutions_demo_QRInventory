@@ -1,0 +1,1 @@
+# tksolutions_demo_QRInventory
