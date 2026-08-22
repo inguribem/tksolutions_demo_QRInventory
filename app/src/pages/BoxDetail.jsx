@@ -1,0 +1,339 @@
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import QRCode from "qrcode";
+import { supabase } from "../lib/supabaseClient.js";
+import { fetchLocations, createLocation } from "../lib/locations.js";
+import Badge from "../components/Badge.jsx";
+
+const STATUS_OPTIONS = [
+  "stored",
+  "partially_empty",
+  "borrowed",
+  "needs_organization",
+  "empty",
+  "archived",
+];
+
+const PHOTO_BUCKET = "inventory";
+
+export default function BoxDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [box, setBox] = useState(null);
+  const [items, setItems] = useState([]);
+  const [photos, setPhotos] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [newLocationName, setNewLocationName] = useState("");
+  const [addingLocation, setAddingLocation] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function loadPhotos() {
+    const { data } = await supabase
+      .from("photos")
+      .select("id, storage_path, caption, created_at")
+      .eq("box_id", id)
+      .order("created_at", { ascending: false });
+
+    const withUrls = await Promise.all(
+      (data || []).map(async (photo) => {
+        const { data: signed } = await supabase.storage
+          .from(PHOTO_BUCKET)
+          .createSignedUrl(photo.storage_path, 3600);
+        return { ...photo, url: signed?.signedUrl };
+      })
+    );
+
+    setPhotos(withUrls);
+  }
+
+  async function load() {
+    const { data: boxData, error: boxError } = await supabase
+      .from("boxes")
+      .select("*, locations(name)")
+      .eq("id", id)
+      .single();
+
+    if (boxError) {
+      setError(boxError.message);
+      return;
+    }
+
+    setBox(boxData);
+
+    const { data: itemsData } = await supabase
+      .from("items")
+      .select("id, name, quantity, unit")
+      .eq("box_id", id)
+      .order("created_at", { ascending: false });
+
+    setItems(itemsData || []);
+    setLocations(await fetchLocations());
+    await loadPhotos();
+
+    const url = await QRCode.toDataURL(boxData.qr_token, { width: 220, margin: 1 });
+    setQrDataUrl(url);
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+
+    const { error: updateError } = await supabase
+      .from("boxes")
+      .update({
+        name: box.name,
+        description: box.description,
+        status: box.status,
+        notes: box.notes,
+        location_id: box.location_id || null,
+      })
+      .eq("id", id);
+
+    setSaving(false);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    load();
+  }
+
+  async function handleAddLocation() {
+    if (!newLocationName.trim()) return;
+    setAddingLocation(true);
+    try {
+      const loc = await createLocation(newLocationName.trim());
+      setLocations((prev) => [...prev, loc].sort((a, b) => a.name.localeCompare(b.name)));
+      setBox((b) => ({ ...b, location_id: loc.id }));
+      setNewLocationName("");
+    } catch (err) {
+      setError(err.message);
+    }
+    setAddingLocation(false);
+  }
+
+  async function handlePhotoUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError("");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const path = `${user.id}/${id}/${crypto.randomUUID()}-${file.name}`;
+
+    const { error: uploadError } = await supabase.storage.from(PHOTO_BUCKET).upload(path, file);
+
+    if (uploadError) {
+      setError(uploadError.message);
+      setUploading(false);
+      return;
+    }
+
+    const { error: insertError } = await supabase.from("photos").insert({
+      user_id: user.id,
+      box_id: id,
+      storage_bucket: PHOTO_BUCKET,
+      storage_path: path,
+      original_filename: file.name,
+      mime_type: file.type,
+      file_size: file.size,
+    });
+
+    setUploading(false);
+    e.target.value = "";
+
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+
+    loadPhotos();
+  }
+
+  async function handleDelete() {
+    if (!confirm(`¿Borrar la caja ${box.box_code}? Esta acción no se puede deshacer.`)) return;
+    const { error: deleteError } = await supabase.from("boxes").delete().eq("id", id);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    navigate("/cajas");
+  }
+
+  if (error && !box) return <div className="error-banner">{error}</div>;
+  if (!box) return <p className="empty-state">Cargando...</p>;
+
+  return (
+    <>
+      <div className="page-header">
+        <div>
+          <h1 className="mono">{box.box_code}</h1>
+          <p className="page-subtitle">
+            <Badge status={box.status} /> · {box.locations?.name || "Sin ubicación"}
+          </p>
+        </div>
+        <button className="link-button danger" onClick={handleDelete}>
+          Borrar caja
+        </button>
+      </div>
+
+      {error && <div className="error-banner">{error}</div>}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 20 }}>
+        <div className="card">
+          <h2 className="card-title">Detalle</h2>
+          <form className="form" onSubmit={handleSave}>
+            <label>
+              Nombre
+              <input
+                value={box.name}
+                onChange={(e) => setBox({ ...box, name: e.target.value })}
+              />
+            </label>
+            <label>
+              Descripción
+              <input
+                value={box.description || ""}
+                onChange={(e) => setBox({ ...box, description: e.target.value })}
+              />
+            </label>
+            <label>
+              Estado
+              <select
+                value={box.status}
+                onChange={(e) => setBox({ ...box, status: e.target.value })}
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Ubicación
+              <select
+                value={box.location_id || ""}
+                onChange={(e) => setBox({ ...box, location_id: e.target.value })}
+              >
+                <option value="">Sin ubicación</option>
+                {locations.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="inline-form">
+              <input
+                placeholder="Nueva ubicación (ej. Garage, Clóset)"
+                value={newLocationName}
+                onChange={(e) => setNewLocationName(e.target.value)}
+              />
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleAddLocation}
+                disabled={addingLocation || !newLocationName.trim()}
+              >
+                {addingLocation ? "Agregando..." : "+ Agregar"}
+              </button>
+            </div>
+            <label>
+              Notas
+              <input
+                value={box.notes || ""}
+                onChange={(e) => setBox({ ...box, notes: e.target.value })}
+              />
+            </label>
+            <div className="form-actions">
+              <button className="btn-primary" type="submit" disabled={saving}>
+                {saving ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div className="card" style={{ textAlign: "center" }}>
+          <h2 className="card-title">Código QR</h2>
+          {qrDataUrl && <img src={qrDataUrl} alt={`QR de ${box.box_code}`} width={220} />}
+          <p className="stat-card-hint mono" style={{ wordBreak: "break-all", marginTop: 12 }}>
+            {box.qr_token}
+          </p>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="page-header" style={{ marginBottom: 12 }}>
+          <h2 className="card-title" style={{ margin: 0 }}>
+            Fotos ({photos.length})
+          </h2>
+          <label className="btn-secondary upload-label">
+            {uploading ? "Subiendo..." : "+ Subir foto"}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              disabled={uploading}
+              style={{ display: "none" }}
+            />
+          </label>
+        </div>
+        {photos.length === 0 ? (
+          <p className="empty-state">Todavía no hay fotos de esta caja.</p>
+        ) : (
+          <div className="photo-grid">
+            {photos.map((photo) => (
+              <img
+                key={photo.id}
+                src={photo.url}
+                alt={photo.caption || box.name}
+                className="photo-thumb"
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <h2 className="card-title">Contenido ({items.length})</h2>
+        {items.length === 0 ? (
+          <p className="empty-state">No hay objetos catalogados en esta caja.</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Cantidad</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.name}</td>
+                  <td>
+                    {item.quantity} {item.unit || ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,18 @@
+# Artefactos generados por qr_generator
+qr_generator/output/
+qr_generator/registro_cajas.csv
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Frontend (app/)
+app/node_modules/
+app/dist/
+app/.env.local
+app/.env.*.local
+
+# Sistema
+.DS_Store
