@@ -175,9 +175,27 @@ Cambios de esquema futuros van siempre como **nueva migración**
 editando tablas a mano en el Studio de producción, para no
 desincronizar local/cloud.
 
-**Frontend**: se despliega aparte (Vercel o Netlify), no en Supabase.
-No hay backend custom que desplegar — Supabase Cloud cubre ese rol
-completo (Auth + DB + Storage + API REST automática).
+**Frontend**: desplegado en Render (Static Site) —
+https://tksolutions-demo-qrinventory.onrender.com — no en Supabase. No
+hay backend custom que desplegar, Supabase Cloud cubre ese rol completo
+(Auth + DB + Storage + API REST automática).
+
+- Root Directory `app`, Build Command `npm install && npm run build`,
+  Publish Directory `dist`.
+- Auto-deploy en cada push a `main` (Render está conectado al repo de
+  GitHub).
+- Variables de entorno cargadas a mano en el dashboard de Render
+  (Vite las hornea en build time, no se leen en runtime): las mismas 4
+  `VITE_SUPABASE_*` que en `app/.env.local`.
+- El magic link funciona en cualquier dominio donde corra la app
+  (`localhost:5173` en dev, Render en producción) porque
+  `signInWithOtp` pasa `emailRedirectTo: window.location.origin`
+  dinámicamente (ver [`Login.jsx`](app/src/pages/Login.jsx)) — el
+  dominio de Render está además agregado al `additional_redirect_urls`
+  (allow-list) de `config.toml`, empujado a cloud con
+  `supabase config push`.
+- Deploy también resuelve la limitación de escaneo QR desde el celular
+  (la cámara requiere HTTPS; Render lo sirve por defecto).
 
 ## Frontend (`app/`) — MVP funcional
 
