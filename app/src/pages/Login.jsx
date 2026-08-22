@@ -12,7 +12,10 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error: authError } = await supabase.auth.signInWithOtp({ email });
+    const { error: authError } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin },
+    });
     setLoading(false);
     if (authError) {
       setError(authError.message);
