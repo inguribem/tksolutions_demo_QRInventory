@@ -16,3 +16,6 @@ app/.env.*.local
 
 # Sistema
 .DS_Store
+
+# pgadmin setup
+pgadmin-setup/
