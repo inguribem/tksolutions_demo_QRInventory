@@ -24,6 +24,7 @@ export default function BoxDetail() {
   const [items, setItems] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [keywordsText, setKeywordsText] = useState("");
   const [newLocationName, setNewLocationName] = useState("");
   const [addingLocation, setAddingLocation] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState("");
@@ -76,6 +77,7 @@ export default function BoxDetail() {
     }
 
     setBox(boxData);
+    setKeywordsText((boxData.keywords || []).join(", "));
 
     await loadItems();
     setLocations(await fetchLocations());
@@ -95,6 +97,11 @@ export default function BoxDetail() {
     setSaving(true);
     setError("");
 
+    const keywords = keywordsText
+      .split(",")
+      .map((k) => k.trim())
+      .filter(Boolean);
+
     const { error: updateError } = await supabase
       .from("boxes")
       .update({
@@ -103,6 +110,7 @@ export default function BoxDetail() {
         status: box.status,
         notes: box.notes,
         location_id: box.location_id || null,
+        keywords,
       })
       .eq("id", id);
 
@@ -249,15 +257,6 @@ export default function BoxDetail() {
           <p className="page-subtitle">
             <Badge status={box.status} /> · {box.locations?.name || "Sin ubicación"}
           </p>
-          {box.keywords?.length > 0 && (
-            <div className="pill-row">
-              {box.keywords.map((k) => (
-                <span key={k} className="pill">
-                  {k}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
         <button className="link-button danger" onClick={handleDelete}>
           Borrar caja
@@ -326,6 +325,14 @@ export default function BoxDetail() {
                 {addingLocation ? "Agregando..." : "+ Agregar"}
               </button>
             </div>
+            <label>
+              Keywords
+              <input
+                value={keywordsText}
+                onChange={(e) => setKeywordsText(e.target.value)}
+                placeholder="Separadas por coma, ej. navidad, luces, adornos"
+              />
+            </label>
             <label>
               Notas
               <input

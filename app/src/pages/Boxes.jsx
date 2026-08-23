@@ -255,7 +255,7 @@ export default function Boxes() {
               </button>
             </div>
             <label>
-              keywords
+              Keywords
               <input
                 value={form.keywords}
                 onChange={(e) => setForm({ ...form, keywords: e.target.value })}
