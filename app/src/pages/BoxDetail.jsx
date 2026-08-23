@@ -24,6 +24,7 @@ export default function BoxDetail() {
   const [items, setItems] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [keywordsText, setKeywordsText] = useState("");
   const [newLocationName, setNewLocationName] = useState("");
   const [addingLocation, setAddingLocation] = useState(false);
@@ -33,13 +34,19 @@ export default function BoxDetail() {
   const [error, setError] = useState("");
 
   const [itemModal, setItemModal] = useState(null); // null | "create" | item
-  const [itemForm, setItemForm] = useState({ name: "", quantity: 1, unit: "" });
+  const [itemForm, setItemForm] = useState({
+    name: "",
+    description: "",
+    quantity: 1,
+    unit: "",
+    category_id: "",
+  });
   const [itemSaving, setItemSaving] = useState(false);
 
   async function loadItems() {
     const { data } = await supabase
       .from("items")
-      .select("id, name, quantity, unit")
+      .select("id, name, description, quantity, unit, category_id, categories(name)")
       .eq("box_id", id)
       .order("created_at", { ascending: false });
     setItems(data || []);
@@ -82,6 +89,12 @@ export default function BoxDetail() {
     await loadItems();
     setLocations(await fetchLocations());
     await loadPhotos();
+
+    const { data: categoriesData } = await supabase
+      .from("categories")
+      .select("id, name")
+      .order("name");
+    setCategories(categoriesData || []);
 
     const url = await QRCode.toDataURL(boxData.qr_token, { width: 220, margin: 1 });
     setQrDataUrl(url);
@@ -181,12 +194,18 @@ export default function BoxDetail() {
   }
 
   function openCreateItem() {
-    setItemForm({ name: "", quantity: 1, unit: "" });
+    setItemForm({ name: "", description: "", quantity: 1, unit: "", category_id: "" });
     setItemModal("create");
   }
 
   function openEditItem(item) {
-    setItemForm({ name: item.name, quantity: item.quantity ?? 1, unit: item.unit || "" });
+    setItemForm({
+      name: item.name,
+      description: item.description || "",
+      quantity: item.quantity ?? 1,
+      unit: item.unit || "",
+      category_id: item.category_id || "",
+    });
     setItemModal(item);
   }
 
@@ -197,8 +216,10 @@ export default function BoxDetail() {
 
     const payload = {
       name: itemForm.name,
+      description: itemForm.description || null,
       quantity: itemForm.quantity,
       unit: itemForm.unit || null,
+      category_id: itemForm.category_id || null,
     };
 
     let submitError;
@@ -406,6 +427,8 @@ export default function BoxDetail() {
               <tr>
                 <th>Nombre</th>
                 <th>Cantidad</th>
+                <th>Categoría</th>
+                <th>Descripción</th>
                 <th></th>
               </tr>
             </thead>
@@ -416,6 +439,8 @@ export default function BoxDetail() {
                   <td>
                     {item.quantity} {item.unit || ""}
                   </td>
+                  <td>{item.categories?.name || "—"}</td>
+                  <td>{item.description || "—"}</td>
                   <td>
                     <div className="table-actions">
                       <button className="link-button" onClick={() => openEditItem(item)}>
@@ -451,6 +476,28 @@ export default function BoxDetail() {
                 onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
                 placeholder="Ej. Foco LED"
               />
+            </label>
+            <label>
+              Descripción
+              <input
+                value={itemForm.description}
+                onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
+                placeholder="Opcional"
+              />
+            </label>
+            <label>
+              Categoría
+              <select
+                value={itemForm.category_id}
+                onChange={(e) => setItemForm({ ...itemForm, category_id: e.target.value })}
+              >
+                <option value="">Sin categoría</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               Cantidad
