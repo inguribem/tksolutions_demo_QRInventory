@@ -337,6 +337,29 @@ body {
 .badge-expired { background: #fee2e2; color: #b91c1c; }
 .badge-completed { background: #ede9fe; color: #5b21b6; }
 
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.table-actions {
+  display: flex;
+  gap: 12px;
+  white-space: nowrap;
+}
+
 /* Forms / modal */
 .modal-backdrop {
   position: fixed;

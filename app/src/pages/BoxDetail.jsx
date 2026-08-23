@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import { supabase } from "../lib/supabaseClient.js";
 import { fetchLocations, createLocation } from "../lib/locations.js";
 import Badge from "../components/Badge.jsx";
+import Modal from "../components/Modal.jsx";
 
 const STATUS_OPTIONS = [
   "stored",
@@ -29,6 +30,19 @@ export default function BoxDetail() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+
+  const [itemModal, setItemModal] = useState(null); // null | "create" | item
+  const [itemForm, setItemForm] = useState({ name: "", quantity: 1, unit: "" });
+  const [itemSaving, setItemSaving] = useState(false);
+
+  async function loadItems() {
+    const { data } = await supabase
+      .from("items")
+      .select("id, name, quantity, unit")
+      .eq("box_id", id)
+      .order("created_at", { ascending: false });
+    setItems(data || []);
+  }
 
   async function loadPhotos() {
     const { data } = await supabase
@@ -63,13 +77,7 @@ export default function BoxDetail() {
 
     setBox(boxData);
 
-    const { data: itemsData } = await supabase
-      .from("items")
-      .select("id, name, quantity, unit")
-      .eq("box_id", id)
-      .order("created_at", { ascending: false });
-
-    setItems(itemsData || []);
+    await loadItems();
     setLocations(await fetchLocations());
     await loadPhotos();
 
@@ -164,6 +172,62 @@ export default function BoxDetail() {
     loadPhotos();
   }
 
+  function openCreateItem() {
+    setItemForm({ name: "", quantity: 1, unit: "" });
+    setItemModal("create");
+  }
+
+  function openEditItem(item) {
+    setItemForm({ name: item.name, quantity: item.quantity ?? 1, unit: item.unit || "" });
+    setItemModal(item);
+  }
+
+  async function handleItemSubmit(e) {
+    e.preventDefault();
+    setItemSaving(true);
+    setError("");
+
+    const payload = {
+      name: itemForm.name,
+      quantity: itemForm.quantity,
+      unit: itemForm.unit || null,
+    };
+
+    let submitError;
+    if (itemModal === "create") {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("items")
+        .insert({ ...payload, user_id: user.id, box_id: id });
+      submitError = error;
+    } else {
+      const { error } = await supabase.from("items").update(payload).eq("id", itemModal.id);
+      submitError = error;
+    }
+
+    setItemSaving(false);
+
+    if (submitError) {
+      setError(submitError.message);
+      return;
+    }
+
+    setItemModal(null);
+    loadItems();
+  }
+
+  async function handleDeleteItem(item) {
+    if (!confirm(`¿Borrar "${item.name}" del contenido de la caja?`)) return;
+    const { error: deleteError } = await supabase.from("items").delete().eq("id", item.id);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    loadItems();
+  }
+
   async function handleDelete() {
     if (!confirm(`¿Borrar la caja ${box.box_code}? Esta acción no se puede deshacer.`)) return;
     const { error: deleteError } = await supabase.from("boxes").delete().eq("id", id);
@@ -185,6 +249,15 @@ export default function BoxDetail() {
           <p className="page-subtitle">
             <Badge status={box.status} /> · {box.locations?.name || "Sin ubicación"}
           </p>
+          {box.keywords?.length > 0 && (
+            <div className="pill-row">
+              {box.keywords.map((k) => (
+                <span key={k} className="pill">
+                  {k}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <button className="link-button danger" onClick={handleDelete}>
           Borrar caja
@@ -310,7 +383,14 @@ export default function BoxDetail() {
       </div>
 
       <div className="card">
-        <h2 className="card-title">Contenido ({items.length})</h2>
+        <div className="page-header" style={{ marginBottom: 12 }}>
+          <h2 className="card-title" style={{ margin: 0 }}>
+            Contenido ({items.length})
+          </h2>
+          <button className="btn-secondary" onClick={openCreateItem}>
+            + Agregar item
+          </button>
+        </div>
         {items.length === 0 ? (
           <p className="empty-state">No hay objetos catalogados en esta caja.</p>
         ) : (
@@ -319,6 +399,7 @@ export default function BoxDetail() {
               <tr>
                 <th>Nombre</th>
                 <th>Cantidad</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -328,12 +409,71 @@ export default function BoxDetail() {
                   <td>
                     {item.quantity} {item.unit || ""}
                   </td>
+                  <td>
+                    <div className="table-actions">
+                      <button className="link-button" onClick={() => openEditItem(item)}>
+                        Editar
+                      </button>
+                      <button
+                        className="link-button danger"
+                        onClick={() => handleDeleteItem(item)}
+                      >
+                        Borrar
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {itemModal && (
+        <Modal
+          title={itemModal === "create" ? "Nuevo item" : "Editar item"}
+          onClose={() => setItemModal(null)}
+        >
+          <form className="form" onSubmit={handleItemSubmit}>
+            {error && <div className="error-banner">{error}</div>}
+            <label>
+              Nombre
+              <input
+                required
+                value={itemForm.name}
+                onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
+                placeholder="Ej. Foco LED"
+              />
+            </label>
+            <label>
+              Cantidad
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={itemForm.quantity}
+                onChange={(e) => setItemForm({ ...itemForm, quantity: e.target.value })}
+              />
+            </label>
+            <label>
+              Unidad
+              <input
+                value={itemForm.unit}
+                onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })}
+                placeholder="Opcional, ej. cajas, pares, kg"
+              />
+            </label>
+            <div className="form-actions">
+              <button type="button" className="btn-secondary" onClick={() => setItemModal(null)}>
+                Cancelar
+              </button>
+              <button className="btn-primary" type="submit" disabled={itemSaving}>
+                {itemSaving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </>
   );
 }

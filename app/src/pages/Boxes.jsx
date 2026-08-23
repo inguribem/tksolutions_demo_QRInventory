@@ -15,7 +15,13 @@ export default function Boxes() {
   const [query, setQuery] = useState("");
 
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", category_id: "", location_id: "" });
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    category_id: "",
+    location_id: "",
+    keywords: "",
+  });
   const [newLocationName, setNewLocationName] = useState("");
   const [addingLocation, setAddingLocation] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -91,6 +97,11 @@ export default function Boxes() {
       return;
     }
 
+    const keywords = form.keywords
+      .split(",")
+      .map((k) => k.trim())
+      .filter(Boolean);
+
     const { error: insertError } = await supabase.from("boxes").insert({
       user_id: user.id,
       box_code: boxCode,
@@ -98,6 +109,7 @@ export default function Boxes() {
       description: form.description || null,
       category_id: form.category_id || null,
       location_id: form.location_id || null,
+      keywords,
     });
 
     setSaving(false);
@@ -108,7 +120,7 @@ export default function Boxes() {
     }
 
     setShowCreate(false);
-    setForm({ name: "", description: "", category_id: "", location_id: "" });
+    setForm({ name: "", description: "", category_id: "", location_id: "", keywords: "" });
     loadBoxes(query);
   }
 
@@ -242,6 +254,14 @@ export default function Boxes() {
                 {addingLocation ? "Agregando..." : "+ Agregar"}
               </button>
             </div>
+            <label>
+              keywords
+              <input
+                value={form.keywords}
+                onChange={(e) => setForm({ ...form, keywords: e.target.value })}
+                placeholder="Separadas por coma, ej. navidad, luces, adornos"
+              />
+            </label>
             <div className="form-actions">
               <button
                 type="button"
