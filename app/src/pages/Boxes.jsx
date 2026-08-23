@@ -19,13 +19,19 @@ export default function Boxes() {
     name: "",
     description: "",
     category_id: "",
-    location_id: "",
+    parent_location_id: "",
+    child_location_id: "",
     keywords: "",
   });
   const [newLocationName, setNewLocationName] = useState("");
   const [addingLocation, setAddingLocation] = useState(false);
+  const [newChildLocationName, setNewChildLocationName] = useState("");
+  const [addingChildLocation, setAddingChildLocation] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const topLocations = locations.filter((l) => !l.parent_location_id);
+  const childLocations = locations.filter((l) => l.parent_location_id === form.parent_location_id);
 
   async function loadBoxes(searchText = "") {
     setLoading(true);
@@ -64,18 +70,36 @@ export default function Boxes() {
     loadBoxes("");
   }
 
+  function handleParentLocationChange(value) {
+    setForm({ ...form, parent_location_id: value, child_location_id: "" });
+  }
+
   async function handleAddLocation() {
     if (!newLocationName.trim()) return;
     setAddingLocation(true);
     try {
       const loc = await createLocation(newLocationName.trim());
-      setLocations((prev) => [...prev, loc].sort((a, b) => a.name.localeCompare(b.name)));
-      setForm((f) => ({ ...f, location_id: loc.id }));
+      setLocations((prev) => [...prev, loc]);
+      setForm((f) => ({ ...f, parent_location_id: loc.id, child_location_id: "" }));
       setNewLocationName("");
     } catch (err) {
       setError(err.message);
     }
     setAddingLocation(false);
+  }
+
+  async function handleAddChildLocation() {
+    if (!newChildLocationName.trim() || !form.parent_location_id) return;
+    setAddingChildLocation(true);
+    try {
+      const loc = await createLocation(newChildLocationName.trim(), form.parent_location_id);
+      setLocations((prev) => [...prev, loc]);
+      setForm((f) => ({ ...f, child_location_id: loc.id }));
+      setNewChildLocationName("");
+    } catch (err) {
+      setError(err.message);
+    }
+    setAddingChildLocation(false);
   }
 
   async function handleCreate(e) {
@@ -108,7 +132,7 @@ export default function Boxes() {
       name: form.name,
       description: form.description || null,
       category_id: form.category_id || null,
-      location_id: form.location_id || null,
+      location_id: form.child_location_id || form.parent_location_id || null,
       keywords,
     });
 
@@ -120,7 +144,14 @@ export default function Boxes() {
     }
 
     setShowCreate(false);
-    setForm({ name: "", description: "", category_id: "", location_id: "", keywords: "" });
+    setForm({
+      name: "",
+      description: "",
+      category_id: "",
+      parent_location_id: "",
+      child_location_id: "",
+      keywords: "",
+    });
     loadBoxes(query);
   }
 
@@ -228,11 +259,11 @@ export default function Boxes() {
             <label>
               Ubicación
               <select
-                value={form.location_id}
-                onChange={(e) => setForm({ ...form, location_id: e.target.value })}
+                value={form.parent_location_id}
+                onChange={(e) => handleParentLocationChange(e.target.value)}
               >
                 <option value="">Sin ubicación</option>
-                {locations.map((l) => (
+                {topLocations.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.name}
                   </option>
@@ -241,7 +272,7 @@ export default function Boxes() {
             </label>
             <div className="inline-form">
               <input
-                placeholder="Nueva ubicación (ej. Garage, Clóset)"
+                placeholder="Nueva ubicación (ej. Garage, Clóset de ropa blanca)"
                 value={newLocationName}
                 onChange={(e) => setNewLocationName(e.target.value)}
               />
@@ -254,6 +285,41 @@ export default function Boxes() {
                 {addingLocation ? "Agregando..." : "+ Agregar"}
               </button>
             </div>
+
+            {form.parent_location_id && (
+              <>
+                <label>
+                  Sub-ubicación
+                  <select
+                    value={form.child_location_id}
+                    onChange={(e) => setForm({ ...form, child_location_id: e.target.value })}
+                  >
+                    <option value="">Sin sub-ubicación</option>
+                    {childLocations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="inline-form">
+                  <input
+                    placeholder="Nueva sub-ubicación (ej. Estante 1)"
+                    value={newChildLocationName}
+                    onChange={(e) => setNewChildLocationName(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleAddChildLocation}
+                    disabled={addingChildLocation || !newChildLocationName.trim()}
+                  >
+                    {addingChildLocation ? "Agregando..." : "+ Agregar"}
+                  </button>
+                </div>
+              </>
+            )}
+
             <label>
               Keywords
               <input

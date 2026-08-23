@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import QRCode from "qrcode";
 import { supabase } from "../lib/supabaseClient.js";
-import { fetchLocations, createLocation } from "../lib/locations.js";
+import { fetchLocations, createLocation, splitLocationId, locationPath } from "../lib/locations.js";
 import Badge from "../components/Badge.jsx";
 import Modal from "../components/Modal.jsx";
 
@@ -26,8 +26,12 @@ export default function BoxDetail() {
   const [locations, setLocations] = useState([]);
   const [categories, setCategories] = useState([]);
   const [keywordsText, setKeywordsText] = useState("");
+  const [parentLocationId, setParentLocationId] = useState("");
+  const [childLocationId, setChildLocationId] = useState("");
   const [newLocationName, setNewLocationName] = useState("");
   const [addingLocation, setAddingLocation] = useState(false);
+  const [newChildLocationName, setNewChildLocationName] = useState("");
+  const [addingChildLocation, setAddingChildLocation] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -86,8 +90,13 @@ export default function BoxDetail() {
     setBox(boxData);
     setKeywordsText((boxData.keywords || []).join(", "));
 
+    const locationsList = await fetchLocations();
+    setLocations(locationsList);
+    const { parentId, childId } = splitLocationId(boxData.location_id, locationsList);
+    setParentLocationId(parentId);
+    setChildLocationId(childId);
+
     await loadItems();
-    setLocations(await fetchLocations());
     await loadPhotos();
 
     const { data: categoriesData } = await supabase
@@ -122,7 +131,7 @@ export default function BoxDetail() {
         description: box.description,
         status: box.status,
         notes: box.notes,
-        location_id: box.location_id || null,
+        location_id: childLocationId || parentLocationId || null,
         keywords,
       })
       .eq("id", id);
@@ -137,18 +146,38 @@ export default function BoxDetail() {
     load();
   }
 
+  function handleParentLocationChange(value) {
+    setParentLocationId(value);
+    setChildLocationId("");
+  }
+
   async function handleAddLocation() {
     if (!newLocationName.trim()) return;
     setAddingLocation(true);
     try {
       const loc = await createLocation(newLocationName.trim());
-      setLocations((prev) => [...prev, loc].sort((a, b) => a.name.localeCompare(b.name)));
-      setBox((b) => ({ ...b, location_id: loc.id }));
+      setLocations((prev) => [...prev, loc]);
+      setParentLocationId(loc.id);
+      setChildLocationId("");
       setNewLocationName("");
     } catch (err) {
       setError(err.message);
     }
     setAddingLocation(false);
+  }
+
+  async function handleAddChildLocation() {
+    if (!newChildLocationName.trim() || !parentLocationId) return;
+    setAddingChildLocation(true);
+    try {
+      const loc = await createLocation(newChildLocationName.trim(), parentLocationId);
+      setLocations((prev) => [...prev, loc]);
+      setChildLocationId(loc.id);
+      setNewChildLocationName("");
+    } catch (err) {
+      setError(err.message);
+    }
+    setAddingChildLocation(false);
   }
 
   async function handlePhotoUpload(e) {
@@ -276,7 +305,7 @@ export default function BoxDetail() {
         <div>
           <h1 className="mono">{box.box_code}</h1>
           <p className="page-subtitle">
-            <Badge status={box.status} /> · {box.locations?.name || "Sin ubicación"}
+            <Badge status={box.status} /> · {locationPath(box.location_id, locations) || "Sin ubicación"}
           </p>
         </div>
         <button className="link-button danger" onClick={handleDelete}>
@@ -320,20 +349,22 @@ export default function BoxDetail() {
             <label>
               Ubicación
               <select
-                value={box.location_id || ""}
-                onChange={(e) => setBox({ ...box, location_id: e.target.value })}
+                value={parentLocationId}
+                onChange={(e) => handleParentLocationChange(e.target.value)}
               >
                 <option value="">Sin ubicación</option>
-                {locations.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
+                {locations
+                  .filter((l) => !l.parent_location_id)
+                  .map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
               </select>
             </label>
             <div className="inline-form">
               <input
-                placeholder="Nueva ubicación (ej. Garage, Clóset)"
+                placeholder="Nueva ubicación (ej. Garage, Clóset de ropa blanca)"
                 value={newLocationName}
                 onChange={(e) => setNewLocationName(e.target.value)}
               />
@@ -346,6 +377,43 @@ export default function BoxDetail() {
                 {addingLocation ? "Agregando..." : "+ Agregar"}
               </button>
             </div>
+
+            {parentLocationId && (
+              <>
+                <label>
+                  Sub-ubicación
+                  <select
+                    value={childLocationId}
+                    onChange={(e) => setChildLocationId(e.target.value)}
+                  >
+                    <option value="">Sin sub-ubicación</option>
+                    {locations
+                      .filter((l) => l.parent_location_id === parentLocationId)
+                      .map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <div className="inline-form">
+                  <input
+                    placeholder="Nueva sub-ubicación (ej. Estante 1)"
+                    value={newChildLocationName}
+                    onChange={(e) => setNewChildLocationName(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleAddChildLocation}
+                    disabled={addingChildLocation || !newChildLocationName.trim()}
+                  >
+                    {addingChildLocation ? "Agregando..." : "+ Agregar"}
+                  </button>
+                </div>
+              </>
+            )}
+
             <label>
               Keywords
               <input
