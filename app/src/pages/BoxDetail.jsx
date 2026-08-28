@@ -105,7 +105,10 @@ export default function BoxDetail() {
       .order("name");
     setCategories(categoriesData || []);
 
-    const url = await QRCode.toDataURL(boxData.qr_token, { width: 220, margin: 1 });
+    // Codificamos una URL (no el token crudo) para que la cámara nativa del
+    // celular la reconozca como link y ofrezca abrirla directo en el detalle.
+    const scanUrl = `${window.location.origin}/escanear?token=${boxData.qr_token}`;
+    const url = await QRCode.toDataURL(scanUrl, { width: 220, margin: 1 });
     setQrDataUrl(url);
   }
 

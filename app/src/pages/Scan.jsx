@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "../lib/supabaseClient.js";
 
@@ -7,11 +7,42 @@ const READER_ID = "qr-reader";
 
 export default function Scan() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tokenFromUrl = searchParams.get("token");
+
   const scannerRef = useRef(null);
   const [error, setError] = useState("");
   const [looking, setLooking] = useState(false);
 
+  async function goToBoxByToken(token) {
+    const { data, error: lookupError } = await supabase
+      .from("boxes")
+      .select("id")
+      .eq("qr_token", token)
+      .single();
+
+    if (lookupError || !data) {
+      setError("Este QR no corresponde a ninguna caja registrada.");
+      return false;
+    }
+
+    navigate(`/cajas/${data.id}`);
+    return true;
+  }
+
+  // QR leído con la cámara nativa del celular (fuera de la app): la URL ya
+  // trae el token, así que resolvemos directo sin abrir el escáner en vivo.
   useEffect(() => {
+    if (tokenFromUrl) {
+      goToBoxByToken(tokenFromUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenFromUrl]);
+
+  // Escáner en vivo dentro de la app (cuando no viene un token por URL).
+  useEffect(() => {
+    if (tokenFromUrl) return;
+
     const scanner = new Html5Qrcode(READER_ID);
     scannerRef.current = scanner;
 
@@ -24,14 +55,8 @@ export default function Scan() {
           setLooking(true);
           await scanner.stop();
 
-          const { data, error: lookupError } = await supabase
-            .from("boxes")
-            .select("id")
-            .eq("qr_token", decodedText)
-            .single();
-
-          if (lookupError || !data) {
-            setError("Este QR no corresponde a ninguna caja registrada.");
+          const ok = await goToBoxByToken(decodedText);
+          if (!ok) {
             setLooking(false);
             scanner.start(
               { facingMode: "environment" },
@@ -39,10 +64,7 @@ export default function Scan() {
               () => {},
               () => {}
             );
-            return;
           }
-
-          navigate(`/cajas/${data.id}`);
         },
         () => {
           // errores de frame individual (sin QR visible) — se ignoran
@@ -54,7 +76,21 @@ export default function Scan() {
       scannerRef.current?.stop().catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [tokenFromUrl]);
+
+  if (tokenFromUrl) {
+    return (
+      <>
+        <div className="page-header">
+          <div>
+            <h1>Escanear QR</h1>
+            <p className="page-subtitle">Buscando la caja...</p>
+          </div>
+        </div>
+        {error && <div className="error-banner">{error}</div>}
+      </>
+    );
+  }
 
   return (
     <>
