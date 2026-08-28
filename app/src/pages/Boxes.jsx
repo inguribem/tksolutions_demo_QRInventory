@@ -220,32 +220,34 @@ export default function Boxes() {
             {query ? "Ninguna caja coincide con la búsqueda." : "Todavía no hay cajas. Creá la primera."}
           </p>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Nombre</th>
-                <th>Categoría</th>
-                <th>Ubicación</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {boxes.map((box) => (
-                <tr key={box.id}>
-                  <td className="mono">
-                    <Link to={`/cajas/${box.id}`}>{box.box_code}</Link>
-                  </td>
-                  <td>{box.name}</td>
-                  <td>{box.categories?.name || "—"}</td>
-                  <td>{box.locations?.name || "—"}</td>
-                  <td>
-                    <Badge status={box.status} />
-                  </td>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Nombre</th>
+                  <th>Categoría</th>
+                  <th>Ubicación</th>
+                  <th>Estado</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {boxes.map((box) => (
+                  <tr key={box.id}>
+                    <td className="mono">
+                      <Link to={`/cajas/${box.id}`}>{box.box_code}</Link>
+                    </td>
+                    <td>{box.name}</td>
+                    <td>{box.categories?.name || "—"}</td>
+                    <td>{box.locations?.name || "—"}</td>
+                    <td>
+                      <Badge status={box.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

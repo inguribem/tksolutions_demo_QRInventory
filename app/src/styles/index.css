@@ -230,7 +230,18 @@ body {
   margin-top: 4px;
 }
 
+/* Detail page: main card + QR side by side, stacks on mobile */
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 20px;
+}
+
 /* Table */
+.table-wrap {
+  overflow-x: auto;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -489,4 +500,100 @@ body {
 /* QR scanner */
 #qr-reader {
   width: 100%;
+}
+
+/* ============================================================
+   Mobile (<= 768px): sidebar fijo de 240px pasa a barra superior,
+   se reduce el padding del contenido, headers y grids se apilan.
+   ============================================================ */
+@media (max-width: 768px) {
+  .app-shell {
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 10px 16px;
+  }
+
+  .sidebar-brand {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding: 0;
+    flex: 1 1 auto;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    flex: 1 1 100%;
+    overflow-x: auto;
+    gap: 6px;
+  }
+
+  .sidebar-link {
+    white-space: nowrap;
+  }
+
+  .sidebar-footer {
+    flex-direction: row;
+    flex: 1 1 100%;
+    align-items: center;
+    justify-content: space-between;
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .sidebar-footer .env-switcher {
+    width: auto;
+    flex: 1;
+  }
+
+  .app-content {
+    padding: 20px 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .page-header .btn-primary,
+  .page-header .btn-secondary,
+  .page-header .upload-label {
+    width: 100%;
+    text-align: center;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-bar {
+    flex-wrap: wrap;
+  }
+
+  .filter-bar input[type="search"] {
+    max-width: none;
+    flex: 1 1 100%;
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal {
+    margin: 12px;
+  }
 }

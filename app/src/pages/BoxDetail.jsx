@@ -315,7 +315,7 @@ export default function BoxDetail() {
 
       {error && <div className="error-banner">{error}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 20 }}>
+      <div className="detail-grid">
         <div className="card">
           <h2 className="card-title">Detalle</h2>
           <form className="form" onSubmit={handleSave}>
@@ -490,42 +490,44 @@ export default function BoxDetail() {
         {items.length === 0 ? (
           <p className="empty-state">No hay objetos catalogados en esta caja.</p>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Cantidad</th>
-                <th>Categoría</th>
-                <th>Descripción</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.name}</td>
-                  <td>
-                    {item.quantity} {item.unit || ""}
-                  </td>
-                  <td>{item.categories?.name || "—"}</td>
-                  <td>{item.description || "—"}</td>
-                  <td>
-                    <div className="table-actions">
-                      <button className="link-button" onClick={() => openEditItem(item)}>
-                        Editar
-                      </button>
-                      <button
-                        className="link-button danger"
-                        onClick={() => handleDeleteItem(item)}
-                      >
-                        Borrar
-                      </button>
-                    </div>
-                  </td>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Cantidad</th>
+                  <th>Categoría</th>
+                  <th>Descripción</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.name}</td>
+                    <td>
+                      {item.quantity} {item.unit || ""}
+                    </td>
+                    <td>{item.categories?.name || "—"}</td>
+                    <td>{item.description || "—"}</td>
+                    <td>
+                      <div className="table-actions">
+                        <button className="link-button" onClick={() => openEditItem(item)}>
+                          Editar
+                        </button>
+                        <button
+                          className="link-button danger"
+                          onClick={() => handleDeleteItem(item)}
+                        >
+                          Borrar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

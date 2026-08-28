@@ -62,26 +62,28 @@ export default function Dashboard() {
         ) : recentBoxes.length === 0 ? (
           <p className="empty-state">Todavía no hay cajas registradas.</p>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Nombre</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentBoxes.map((box) => (
-                <tr key={box.id}>
-                  <td className="mono">
-                    <Link to={`/cajas/${box.id}`}>{box.box_code}</Link>
-                  </td>
-                  <td>{box.name}</td>
-                  <td>{box.status}</td>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Nombre</th>
+                  <th>Estado</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recentBoxes.map((box) => (
+                  <tr key={box.id}>
+                    <td className="mono">
+                      <Link to={`/cajas/${box.id}`}>{box.box_code}</Link>
+                    </td>
+                    <td>{box.name}</td>
+                    <td>{box.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>
