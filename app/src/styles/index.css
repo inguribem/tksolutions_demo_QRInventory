@@ -502,6 +502,52 @@ body {
   width: 100%;
 }
 
+/* Impresión del QR: oculto por defecto, solo visible dentro de #qr-print-area al imprimir */
+.qr-print-code {
+  display: none;
+}
+
+/* ============================================================
+   Imprimir código QR: aísla #qr-print-area (la tarjeta del QR en
+   el detalle de caja) y oculta todo lo demás de la página.
+   ============================================================ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #qr-print-area,
+  #qr-print-area * {
+    visibility: visible;
+  }
+
+  #qr-print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    border: none;
+    box-shadow: none;
+    padding: 24px;
+  }
+
+  #qr-print-area img {
+    width: 260px;
+    height: 260px;
+  }
+
+  .qr-print-code {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    margin-top: 16px;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
 /* ============================================================
    Mobile (<= 768px): sidebar fijo de 240px pasa a barra superior,
    se reduce el padding del contenido, headers y grids se apilan.

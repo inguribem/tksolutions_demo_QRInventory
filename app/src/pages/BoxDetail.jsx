@@ -437,12 +437,21 @@ export default function BoxDetail() {
           </form>
         </div>
 
-        <div className="card" style={{ textAlign: "center" }}>
-          <h2 className="card-title">Código QR</h2>
+        <div className="card" style={{ textAlign: "center" }} id="qr-print-area">
+          <h2 className="card-title no-print">Código QR</h2>
           {qrDataUrl && <img src={qrDataUrl} alt={`QR de ${box.box_code}`} width={220} />}
-          <p className="stat-card-hint mono" style={{ wordBreak: "break-all", marginTop: 12 }}>
+          <p className="qr-print-code mono">{box.box_code}</p>
+          <p className="stat-card-hint mono no-print" style={{ wordBreak: "break-all", marginTop: 12 }}>
             {box.qr_token}
           </p>
+          <button
+            type="button"
+            className="btn-secondary no-print"
+            style={{ marginTop: 12 }}
+            onClick={() => window.print()}
+          >
+            🖨️ Imprimir QR
+          </button>
         </div>
       </div>
 
