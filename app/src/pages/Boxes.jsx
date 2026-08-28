@@ -35,13 +35,41 @@ export default function Boxes() {
 
   async function loadBoxes(searchText = "") {
     setLoading(true);
-    let request = supabase.from("boxes").select(BOX_SELECT).order("created_at", { ascending: false });
+    const trimmed = searchText.trim();
 
-    if (searchText.trim()) {
-      request = request.or(`name.ilike.%${searchText}%,box_code.ilike.%${searchText}%`);
+    if (trimmed) {
+      // search_inventory() busca en boxes (nombre/descripción/keywords) y
+      // en items (nombre/keywords) de esas cajas; se combina con un match
+      // directo por box_code, que la función no cubre.
+      const [{ data: matches, error: searchError }, { data: byCode }] = await Promise.all([
+        supabase.rpc("search_inventory", { search_text: trimmed }),
+        supabase.from("boxes").select("id").ilike("box_code", `%${trimmed}%`),
+      ]);
+
+      if (searchError) setError(searchError.message);
+
+      const ids = [
+        ...new Set([...(matches || []).map((m) => m.box_id), ...(byCode || []).map((b) => b.id)]),
+      ];
+
+      if (ids.length === 0) {
+        setBoxes([]);
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("boxes")
+        .select(BOX_SELECT)
+        .in("id", ids)
+        .order("created_at", { ascending: false });
+
+      setBoxes(data || []);
+      setLoading(false);
+      return;
     }
 
-    const { data } = await request;
+    const { data } = await supabase.from("boxes").select(BOX_SELECT).order("created_at", { ascending: false });
     setBoxes(data || []);
     setLoading(false);
   }
@@ -172,7 +200,7 @@ export default function Boxes() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar por nombre o código (ej. HOME-0001)"
+          placeholder="Buscar por nombre, código, keywords o contenido"
         />
         <button className="btn-secondary" type="submit">
           Buscar
