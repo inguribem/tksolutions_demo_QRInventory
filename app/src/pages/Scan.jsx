@@ -14,6 +14,17 @@ export default function Scan() {
   const [error, setError] = useState("");
   const [looking, setLooking] = useState(false);
 
+  // El QR codifica una URL (".../escanear?token=xxx"), pero por compatibilidad
+  // también aceptamos que el texto leído sea el token crudo directamente.
+  function extractToken(decodedText) {
+    try {
+      const url = new URL(decodedText);
+      return url.searchParams.get("token") || decodedText;
+    } catch {
+      return decodedText;
+    }
+  }
+
   async function goToBoxByToken(token) {
     const { data, error: lookupError } = await supabase
       .from("boxes")
@@ -55,7 +66,7 @@ export default function Scan() {
           setLooking(true);
           await scanner.stop();
 
-          const ok = await goToBoxByToken(decodedText);
+          const ok = await goToBoxByToken(extractToken(decodedText));
           if (!ok) {
             setLooking(false);
             scanner.start(
