@@ -482,6 +482,15 @@ body {
   cursor: pointer;
 }
 
+.qr-svg {
+  display: inline-block;
+}
+
+.qr-svg svg {
+  width: 220px;
+  height: 220px;
+}
+
 /* Login */
 .login-shell {
   min-height: 100vh;
@@ -539,7 +548,7 @@ body {
     padding: 24px;
   }
 
-  #qr-print-area img {
+  #qr-print-area .qr-svg svg {
     width: 260px;
     height: 260px;
   }

@@ -32,7 +32,7 @@ export default function BoxDetail() {
   const [addingLocation, setAddingLocation] = useState(false);
   const [newChildLocationName, setNewChildLocationName] = useState("");
   const [addingChildLocation, setAddingChildLocation] = useState(false);
-  const [qrDataUrl, setQrDataUrl] = useState("");
+  const [qrSvg, setQrSvg] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -108,8 +108,11 @@ export default function BoxDetail() {
     // Codificamos una URL (no el token crudo) para que la cámara nativa del
     // celular la reconozca como link y ofrezca abrirla directo en el detalle.
     const scanUrl = `${window.location.origin}/escanear?token=${boxData.qr_token}`;
-    const url = await QRCode.toDataURL(scanUrl, { width: 220, margin: 1 });
-    setQrDataUrl(url);
+    // SVG en vez de PNG/base64: imprime mucho más confiable (un PNG grande
+    // incrustado como base64 puede romper el pipeline PostScript de macOS
+    // al imprimir — aparece texto tipo "APL_DSC_Encoding" en vez del QR).
+    const svg = await QRCode.toString(scanUrl, { type: "svg", width: 220, margin: 1 });
+    setQrSvg(svg);
   }
 
   useEffect(() => {
@@ -442,7 +445,14 @@ export default function BoxDetail() {
 
         <div className="card" style={{ textAlign: "center" }} id="qr-print-area">
           <h2 className="card-title no-print">Código QR</h2>
-          {qrDataUrl && <img src={qrDataUrl} alt={`QR de ${box.box_code}`} width={220} />}
+          {qrSvg && (
+            <div
+              className="qr-svg"
+              role="img"
+              aria-label={`QR de ${box.box_code}`}
+              dangerouslySetInnerHTML={{ __html: qrSvg }}
+            />
+          )}
           <p className="qr-print-code mono">{box.box_code}</p>
           <p className="stat-card-hint mono no-print" style={{ wordBreak: "break-all", marginTop: 12 }}>
             {box.qr_token}
