@@ -510,22 +510,30 @@ body {
 /* ============================================================
    Imprimir código QR: aísla #qr-print-area (la tarjeta del QR en
    el detalle de caja) y oculta todo lo demás de la página.
+
+   Usamos display:none (no visibility:hidden) porque controles
+   nativos como los <select> del formulario pueden seguir
+   imprimiéndose como texto con visibility:hidden — display:none los
+   saca del todo del árbol de render.
    ============================================================ */
 @media print {
-  body * {
-    visibility: hidden;
+  .sidebar,
+  .no-print,
+  .app-content > .page-header,
+  .app-content > .error-banner,
+  .app-content > .modal-backdrop {
+    display: none !important;
   }
 
-  #qr-print-area,
-  #qr-print-area * {
-    visibility: visible;
+  .detail-grid > *:not(#qr-print-area) {
+    display: none !important;
+  }
+
+  .app-content > .card:not(#qr-print-area) {
+    display: none !important;
   }
 
   #qr-print-area {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
     border: none;
     box-shadow: none;
     padding: 24px;
@@ -541,10 +549,6 @@ body {
     font-size: 20px;
     font-weight: 700;
     margin-top: 16px;
-  }
-
-  .no-print {
-    display: none !important;
   }
 }
 
