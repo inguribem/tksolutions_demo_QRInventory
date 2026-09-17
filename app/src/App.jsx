@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Sidebar from "./components/Sidebar.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Boxes from "./pages/Boxes.jsx";
@@ -22,13 +23,15 @@ export default function App() {
     <div className="app-shell">
       <Sidebar />
       <main className="app-content">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/cajas" element={<Boxes />} />
-          <Route path="/cajas/:id" element={<BoxDetail />} />
-          <Route path="/escanear" element={<Scan />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/cajas" element={<Boxes />} />
+            <Route path="/cajas/:id" element={<BoxDetail />} />
+            <Route path="/escanear" element={<Scan />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ErrorBoundary>
       </main>
     </div>
   );

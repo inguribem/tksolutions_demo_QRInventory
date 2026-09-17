@@ -11,8 +11,24 @@ export default function Scan() {
   const tokenFromUrl = searchParams.get("token");
 
   const scannerRef = useRef(null);
+  const stoppedRef = useRef(false);
   const [error, setError] = useState("");
   const [looking, setLooking] = useState(false);
+
+  // html5-qrcode mete sus propios elementos de video en el DOM por fuera de
+  // React; su .stop() puede tirar un error (a veces síncrono) si ya está
+  // detenida o si el nodo ya no existe. Evitamos llamarla dos veces y
+  // envolvemos en try/catch para que nunca tumbe el render de React al
+  // desmontar el componente (eso es lo que dejaba la pantalla en blanco).
+  async function safeStop() {
+    if (stoppedRef.current || !scannerRef.current) return;
+    stoppedRef.current = true;
+    try {
+      await scannerRef.current.stop();
+    } catch {
+      // la cámara ya estaba detenida o el componente se desmontó — ignorar
+    }
+  }
 
   // El QR codifica una URL (".../escanear?token=xxx"), pero por compatibilidad
   // también aceptamos que el texto leído sea el token crudo directamente.
@@ -56,6 +72,7 @@ export default function Scan() {
 
     const scanner = new Html5Qrcode(READER_ID);
     scannerRef.current = scanner;
+    stoppedRef.current = false;
 
     scanner
       .start(
@@ -64,11 +81,12 @@ export default function Scan() {
         async (decodedText) => {
           if (looking) return;
           setLooking(true);
-          await scanner.stop();
+          await safeStop();
 
           const ok = await goToBoxByToken(extractToken(decodedText));
           if (!ok) {
             setLooking(false);
+            stoppedRef.current = false;
             scanner.start(
               { facingMode: "environment" },
               { fps: 10, qrbox: 240 },
@@ -84,7 +102,7 @@ export default function Scan() {
       .catch((err) => setError("No se pudo acceder a la cámara: " + err.message));
 
     return () => {
-      scannerRef.current?.stop().catch(() => {});
+      safeStop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokenFromUrl]);
